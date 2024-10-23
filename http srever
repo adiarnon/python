@@ -44,16 +44,16 @@ def validate_http_request(request):
 def handle_client_request(resource, client_socket):
     """ Check the required resource, generate proper HTTP response and send to client"""
     # TO DO : add code that given a resource (URL and parameters) generates the proper response
-    if resource == "/":
-        resource="/index.html"
-    resource1 = "c:/networks" + resource
-    print(resource1)
-    if resource == "/page.html":
-        redirect_url = "/page1.html"
-        response_header = f"HTTP/1.1 302 Found\r\nLocation: {redirect_url}\r\n\r\n"
-        client_socket.sendall(response_header.encode())
-        print(f"Redirecting to: {redirect_url}")
     try:
+        if resource == "/":
+            resource="/index.html"
+        resource1 = "c:/networks" + resource
+        print(resource1)
+        if resource == "/page.html":
+            redirect_url = "/page1.html"
+            response_header = f"HTTP/1.1 302 Found\r\nLocation: {redirect_url}\r\n\r\n"
+            client_socket.sendall(response_header.encode())
+            print(f"Redirecting to: {redirect_url}")
         if os.path.isfile(resource1):
             if extension(resource) == "py":
                 response_body = "403 Forbidden"
@@ -77,12 +77,19 @@ def handle_client_request(resource, client_socket):
                 client_socket.sendall(response)
                 print(f"Sent file: {resource}")
         else:
-            response_header = f"HTTP/1.0 404 Not Found\r\n\r\n"
-            response = response_header.encode()
-            # Send the response to the client
+            # Handling 404 Not Found
+            response_body = "404 Not Found"
+            response_header = f"HTTP/1.1 404 Not Found\r\ntext/plain\r\nContent-Length: {len(response_body)}\r\n\r\n"
+            response = response_header.encode() + response_body.encode()
             client_socket.sendall(response)
-            print("doesn't work")
-    except
+            print("File not found: " + resource)
+
+    except Exception as e:
+        response_body = "500 Internal Server Error"
+        response_header = f"HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: {len(response_body)}\r\n\r\n"
+        response = response_header.encode() + response_body.encode()
+        client_socket.sendall(response)
+        print(f"Error processing request: {e}")
 
 def handle_client(client_socket):
     """ Handles client requests: verifies client's requests are legal HTTP, calls function to handle the requests """
@@ -101,8 +108,12 @@ def handle_client(client_socket):
             client_socket.send(msg.encode())
             break
         else:
-            print('Error: Not a valid HTTP request')
-            break
+            response_body = "500 Internal Server Error"
+            response_header = f"HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: {len(response_body)}\r\n\r\n"
+            response = response_header.encode() + response_body.encode()
+            client_socket.sendall(response)
+            print(f"Error processing request: {response}")
+            break  # Exit the loop if there's an error
     print('Closing connection')
     client_socket.send("\r\nclosing connection".encode())
     client_socket.close()
