@@ -1,0 +1,120 @@
+import socket
+import struct
+
+DNS_SERVER_IP = '0.0.0.0'
+DNS_SERVER_PORT = 53
+DEFAULT_BUFFER_SIZE = 1024
+
+def dns_handler(data, addr, server_socket):
+    print("dns_handler called")
+
+    # Decoding the Transaction ID
+    transaction_id = data[:2]
+    print(f"Transaction ID: {transaction_id}")
+
+    # Decoding the Flags (there are many flags, like whether it's a response or not)
+    flags = data[2:4]
+    print(f"Flags: {flags}")
+
+    # Decoding the domain name (QNAME)
+    qname = decode_qname(data[12:])  # Starting at position 12
+    print(f"Domain name (QNAME): {qname}")
+
+    # Decoding the two bytes immediately after the domain name (part of the Question Section in the DNS request)
+    qtype = struct.unpack("!H", data[12 + len(qname):14 + len(qname)])[0]
+    print(f"QTYPE: {qtype}")
+
+    # Looking up DNS for the answer to the query
+    if qname == "www.google.com":  # and qtype == 1:  # A-record (IPv4 address)
+        print("Domain matches www.google.com, creating response")
+        ip = "195.225.46.185"
+        response = create_dns_response(transaction_id, qname, ip)
+        print(f"Sending DNS response: {response}")
+        server_socket.sendto(response, addr)
+    else:
+        print("No match found for domain or invalid QTYPE")
+
+def decode_qname(data):
+    """
+    Decode a DNS QNAME from the DNS query data.
+    This function handles the domain name encoding where each label is prefixed with its length.
+    """
+    qname = ''
+    i = 0
+    while True:
+        length = data[i]
+        if length == 0:  # End of QNAME
+            break
+        i += 1
+        qname += data[i:i+length].decode('utf-8') + '.'
+        i += length
+    return qname[:-1]  # Remove the trailing dot
+
+def create_dns_response(transaction_id, qname, ip_address):
+    print("create_dns_response called")
+
+    # Convert the IP address to bytes
+    ip_bytes = bytes(map(int, ip_address.split('.')))
+    print(f"IP address bytes: {ip_bytes}")
+
+    # DNS Response Header
+    header = transaction_id            # The transaction ID
+    header += b'\x81\x80'              # Flags (0x8180: standard query response)
+    header += b'\x00\x01'              # Number of questions (1)
+    header += b'\x00\x01'              # Number of answers (1)
+    header += b'\x00\x00'              # Number of authority records (0)
+    header += b'\x00\x00'              # Number of additional records (0)
+    print(f"Response Header: {header}")
+
+    # Question Section
+    qname_bytes = encode_qname(qname)  # Encode the domain name to the correct byte format
+    question_section = qname_bytes + b'\x00'  # Domain name (encoded in bytes) + null byte
+    question_section += b'\x00\x01'  # Type A (IPv4 Address)
+    question_section += b'\x00\x01'  # Class IN (Internet)
+    print(f"Question Section: {question_section}")
+
+    # Answer Section
+    answer = b'\xc0\x0c'  # Pointer to the domain name (reference to the domain name in the question section)
+    answer += b'\x00\x01'  # Type A (IPv4 Address)
+    answer += b'\x00\x01'  # Class IN (Internet)
+    answer += b'\x00\x00\x00\x01'  # TTL (Time to Live - 1 second)
+    answer += b'\x00\x04'  # Length of the data (4 bytes for an IPv4 address)
+    answer += ip_bytes     # The actual IP address
+    print(f"Answer Section: {answer}")
+
+    # Combine all parts into a full DNS response
+    full_response = header + question_section + answer
+    print(f"Full DNS Response: {full_response}")
+    return full_response
+
+def encode_qname(qname):
+    print(f"Encoding QNAME: {qname}")
+    # Helper function to encode the domain name into DNS format
+    labels = qname.split('.')
+    encoded = b''
+    for label in labels:
+        encoded += bytes([len(label)]) + label.encode('utf-8')
+    print(f"Encoded QNAME: {encoded}")
+    return encoded
+
+def dns_udp_server(ip, port):
+    print("Starting DNS UDP server...")
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind((ip, port))
+    print("Server started successfully! Waiting for data...")
+
+    while True:
+        try:
+            print("Waiting for data from client...")
+            data, addr = server_socket.recvfrom(DEFAULT_BUFFER_SIZE)
+            print(f"Received data from {addr}")
+            dns_handler(data, addr, server_socket)
+        except Exception as ex:
+            print(f"Client exception: {str(ex)}")
+
+def main():
+    print("Starting UDP server")
+    dns_udp_server(DNS_SERVER_IP, DNS_SERVER_PORT)
+
+if __name__ == '__main__':
+    main()
