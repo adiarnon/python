@@ -2,8 +2,16 @@ import socket
 import struct
 
 DNS_SERVER_IP = '0.0.0.0'
-DNS_SERVER_PORT = 53
+DNS_SERVER_PORT = 1053
 DEFAULT_BUFFER_SIZE = 1024
+
+def get_ip_for_domain(domain):
+    try:
+        ip = socket.gethostbyname(domain)
+        return ip
+    except socket.gaierror:
+        print(f"לא הצלחנו לפתור את הדומיין {domain}")
+        return None
 
 def dns_handler(data, addr, server_socket):
     print("dns_handler called")
@@ -25,9 +33,9 @@ def dns_handler(data, addr, server_socket):
     print(f"QTYPE: {qtype}")
 
     # Looking up DNS for the answer to the query
-    if qname == "www.google.com":  # and qtype == 1:  # A-record (IPv4 address)
+    if  "www.13tv.co.il" in qname:  # and qtype == 1:  # A-record (IPv4 address)
         print("Domain matches www.google.com, creating response")
-        ip = "195.225.46.185"
+        ip = "66.22.84.55"
         response = create_dns_response(transaction_id, qname, ip)
         print(f"Sending DNS response: {response}")
         server_socket.sendto(response, addr)
