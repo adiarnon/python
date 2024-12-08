@@ -1,0 +1,13 @@
+import socket
+import time
+# יצירת סוקט UDP
+my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+message = 'Omer'
+start_time = time.time()
+my_socket.sendto(message.encode(), ('127.0.0.1', 8821))
+(data, remote_address) = my_socket.recvfrom(1024)
+end_time = time.time()
+response_time = end_time - start_time
+print('The server sent: ' + data.decode())
+print(f'Time taken for response: {response_time:.6f} seconds')
+my_socket.close()
