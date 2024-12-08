@@ -1,0 +1,15 @@
+import socket
+
+# בקשת שם דומיין מהמשתמש
+domain = input("Enter the domain you want to query (e.g., www.google.com): ")
+try:
+    # קבלת כל הכתובות הרלוונטיות לדומיין
+    ip_addresses = socket.getaddrinfo(domain, None)
+    # הדפסת כל הכתובות הייחודיות
+    unique_ips = set(info[4][0] for info in ip_addresses)
+    print(f"IP addresses for {domain}:")
+    for ip in unique_ips:
+        print(ip)
+
+except socket.gaierror:
+    print(f"Failed to resolve domain: {domain}")
